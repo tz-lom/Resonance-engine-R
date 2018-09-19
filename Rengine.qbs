@@ -3,9 +3,8 @@ import qbs 1.0
 Product {
     condition: rbuild.ready
 
-    Depends { name: "ScriptEngineInterface" }
+    Depends { name: "Resonance" }
     Depends { name: "cpp" }
-    Depends { name: "Qt.core" }
     Depends {
         name: "rbuild"
         required: false

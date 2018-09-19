@@ -1,0 +1,3 @@
+[submodule "Resonance"]
+	path = Resonance
+	url = https://github.com/tz-lom/Resonance-API
