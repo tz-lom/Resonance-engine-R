@@ -9,7 +9,11 @@ Product {
         name: "rbuild"
         required: true
     }
-    Resonance.standalone: true
+    
+    Properties {
+        condition: Resonance !== null
+        Resonance.standalone: false
+    }
 
     name: "Rengine"
     type: "dynamiclibrary"
