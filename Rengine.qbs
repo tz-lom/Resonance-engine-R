@@ -11,8 +11,8 @@ Product {
     }
     
     Properties {
-        condition: Resonance !== null
-        Resonance.standalone: false
+        condition: Resonance != null
+        Resonance.standalone: true
     }
 
     name: "Rengine"
