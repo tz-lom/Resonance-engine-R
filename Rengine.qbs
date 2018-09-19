@@ -7,18 +7,14 @@ Product {
     Depends { name: "cpp" }
     Depends {
         name: "rbuild"
-        required: false
+        required: true
     }
+    Resonance.standalone: true
 
     name: "Rengine"
     type: "dynamiclibrary"
-    cpp.minimumOsxVersion: '10.9'
-    cpp.cxxLanguageVersion: "c++11"
-
-    cpp.includePaths: [
-        'RInside/inst/include'
-    ]
-
+    
+    cpp.includePaths: "thir"
 
     Group {
         name: {
@@ -27,9 +23,7 @@ Product {
     }
 
     files: [
-        "rengine.cpp",
-        //"rthread.cpp",
-        //"rthread.h",
+        "rengine.cpp"
     ]
 
     Group {
@@ -37,20 +31,6 @@ Product {
         fileTagsFilter: "dynamiclibrary"
         qbs.install: true
         qbs.installDir: "bin/engines"
-    }
-
-    Group {
-        name: "RInside"
-        files: [
-            "RInside/inst/include/**",
-            "RInside/src/*.cpp"
-        ]
-    }
-
-    Group {
-        name: "Gen R for RInside"
-        files: "RInside/src/tools/R*r"
-        fileTags: 'Rgen'
     }
 
 }

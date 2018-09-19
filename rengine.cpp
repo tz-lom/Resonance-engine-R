@@ -1,4 +1,4 @@
-#include <ScriptEngineInterface.h>
+#include <Resonance/scriptengineinterface.h>
 
 // fix bug with C++11 support in Rinterface
 #ifdef _WIN32
@@ -11,8 +11,8 @@
 #include <RInside.h>
 #undef MESSAGE
 
-#include <protocol.cpp>
-#include <rtc.cpp>
+#include <Resonance/protocol.h>
+#include <Resonance/rtc.cpp>
 
 #include <map>
 
@@ -28,7 +28,7 @@ static const char* engineNameString = "R";
 
 typedef struct {
     int id;
-    SerializedData::rid type;
+    Thir::SerializedData::rid type;
 } StreamDescription;
 
 static std::map<int, StreamDescription> outputs;
@@ -73,9 +73,9 @@ bool prepareEngine(const char *code, size_t codeLength, const SerializedDataCont
     int registeredInputs = 0;
     for(uint32_t i=0; i<streamCount; ++i)
     {
-        SerializedData data((const char*)streams[i].data, streams[i].size);
+        Thir::SerializedData data((const char*)streams[i].data, streams[i].size);
         //data.extractString<ConnectionHeaderContainer::name>()
-        SerializedData type = data.extractAny<ConnectionHeaderContainer::type>();
+        Thir::SerializedData type = data.field<ConnectionHeaderContainer::type>();
 
         switch(type.id())
         {
@@ -85,8 +85,8 @@ bool prepareEngine(const char *code, size_t codeLength, const SerializedDataCont
             inputList.push_back(
                         Rcpp::List::create(
                             Rcpp::Named("type") = "channels",
-                            Rcpp::Named("channels") = type.extractField<ConnectionHeader_Float64::channels>(),
-                            Rcpp::Named("samplingRate") = type.extractField<ConnectionHeader_Float64::samplingRate>(),
+                            Rcpp::Named("channels") = type.field<ConnectionHeader_Float64::channels>().value(),
+                            Rcpp::Named("samplingRate") = type.field<ConnectionHeader_Float64::samplingRate>().value(),
                             Rcpp::Named("online") = true
                     ));
             inputs[i] = {++registeredInputs, Float64::ID};
@@ -127,28 +127,28 @@ void blockReceived(const int id, const SerializedDataContainer block)
         {
             Rcpp::Function onDataBlock("onDataBlock.message", "Resonate");
 
-            SerializedData data(block.data, block.size);
+            Thir::SerializedData data(block.data, block.size);
 
             onDataBlock(is.id,
-                        data.extractString<Message::message>(),
-                        data.extractField<Message::created>()/1E3
+                        data.field<Message::message>().value(),
+                        data.field<Message::created>().value()/1E3
                         );
         }
             break;
         case Float64::ID:
         {
-            SerializedData data(block.data, block.size);
+            Thir::SerializedData data(block.data, block.size);
 
-            auto vec = data.extractVector<Float64::data>();
+            auto vec = data.field<Float64::data>().toVector();
             Rcpp::NumericVector rdata(vec.begin(), vec.end());
 
-            int samples = data.extractField<Float64::samples>();
+            int samples = data.field<Float64::samples>();
 
             Rcpp::Function onDataBlock("onDataBlock.double", "Resonate");
             onDataBlock(is.id,
                         rdata,
                         samples,
-                        data.extractField<Float64::created>()/1E3
+                        data.field<Float64::created>().value()/1E3
                         );
         }
             break;
@@ -156,12 +156,12 @@ void blockReceived(const int id, const SerializedDataContainer block)
     }
     catch(Rcpp::eval_error &e)
     {
-        qDebug() << "R err:" << e.what();
+        //qDebug() << "R err:" << e.what();
     }
 
     catch(std::exception &e)
     {
-        qDebug() << e.what();
+        //qDebug() << e.what();
         return;
     }
     RparceQueue();
@@ -201,14 +201,13 @@ bool RparceQueue()
                 {
                 case Message::ID:
                 {
-                    SerializedData *block = Message::create()
+                    SD block = Message::create()
                             .set(RTC::now())
                             .set(0)
                             .set(Rcpp::as<std::string>(args["data"]))
                             .finish();
 
                     ip.sendBlock(os.id, SerializedDataContainer({block->data(), block->size()}) );
-                    delete block;
                 }
                     break;
                 case Float64::ID:
@@ -219,7 +218,7 @@ bool RparceQueue()
                     int rows = data.nrow();
                     std::vector<double> idata = Rcpp::as<std::vector<double> >( transpose(data) );
 
-                    SerializedData *block = Float64::create()
+                    SD block = Float64::create()
                             .set(RTC::now())
                             .set(0)
                             .set(rows)
@@ -227,7 +226,6 @@ bool RparceQueue()
                             .finish();
 
                     ip.sendBlock(os.id, SerializedDataContainer({block->data(), block->size()}) );
-                    delete block;
                 }
                     break;
                 }
@@ -241,9 +239,8 @@ bool RparceQueue()
 
                 if(type=="event")
                 {
-                    SerializedData *type = ConnectionHeader_Message::create().finish().finish();
+                    SD type = ConnectionHeader_Message::create().next().finish();
                     int sendId = ip.declareStream(name.data(), SerializedDataContainer({type->data(), (uint32_t)type->size()}));
-                    delete type;
 
                     if(sendId!=-1)
                     {
@@ -255,12 +252,11 @@ bool RparceQueue()
                     double samplingRate = Rcpp::as<double>(args["samplingRate"]);
                     int channels = Rcpp::as<int>(args["channels"]);
 
-                    SerializedData *type = ConnectionHeader_Float64::create()
+                    SD type = ConnectionHeader_Float64::create()
                             .set(channels)
                             .set(samplingRate)
                             .finish();
                     int sendId = ip.declareStream(name.data(), SerializedDataContainer({type->data(), (uint32_t)type->size()}));
-                    delete type;
 
                     if(sendId!=-1)
                     {

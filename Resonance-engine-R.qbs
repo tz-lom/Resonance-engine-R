@@ -5,5 +5,5 @@ Project {
     
     qbsSearchPaths: ["qbs", "Resonance/qbs"]
     
-    references: 'REngine.qbs'
+    references: 'Rengine.qbs'
 }
