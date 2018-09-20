@@ -13,3 +13,6 @@
 [submodule "config"]
 	path = boost/config
 	url = https://github.com/boostorg/config
+[submodule "boost/predef"]
+	path = boost/predef
+	url = https://github.com/boostorg/predef
