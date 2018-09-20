@@ -5,8 +5,11 @@
 	path = thir
 	url = https://github.com/tz-lom/thir
 [submodule "preprocessor"]
-	path = preprocessor
+	path = boost/preprocessor
 	url = https://github.com/boostorg/preprocessor
 [submodule "endian"]
-	path = endian
+	path = boost/endian
 	url = https://github.com/boostorg/endian
+[submodule "config"]
+	path = boost/config
+	url = https://github.com/boostorg/config
