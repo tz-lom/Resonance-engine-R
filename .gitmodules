@@ -4,3 +4,6 @@
 [submodule "thir"]
 	path = thir
 	url = https://github.com/tz-lom/thir
+[submodule "preprocessor"]
+	path = preprocessor
+	url = https://github.com/boostorg/preprocessor
