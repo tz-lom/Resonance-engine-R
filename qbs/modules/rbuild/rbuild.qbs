@@ -126,10 +126,9 @@ Module {
 
                 var RInside_ldFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'RInside:::LdFlags()'], extraPaths, pathListSeparator))
                 var RInside_cxxFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'RInside:::CxxFlags()'], extraPaths, pathListSeparator))
-                var RInsideExtra = RInside_ldFlags.residuals.length?(RInside_ldFlags.residuals[0].slice(1, -1)):[]
                 libraryPaths = libraryPaths.concat(RInside_ldFlags.libraryPaths)
                 includePaths = includePaths.concat(RInside_cxxFlags.includePaths)
-                dynamicLibraries = dynamicLibraries.concat(RInside_ldFlags.dynamicLibraries).concat(RInsideExtra)
+                dynamicLibraries = dynamicLibraries.concat(RInside_ldFlags.dynamicLibraries)
                 frameworks = frameworks.concat(RInside_ldFlags.frameworks)
                 frameworkPaths = frameworkPaths.concat(RInside_ldFlags.frameworkPaths)
             }
