@@ -1,3 +1,4 @@
+#include <Resonance/common.h>
 #include <Resonance/scriptengineinterface.h>
 
 // fix bug with C++11 support in Rinterface
@@ -8,10 +9,11 @@
 #endif
 #endif
 
+#undef ERROR
 #include <RInside.h>
 #undef MESSAGE
 
-#include <Resonance/protocol.h>
+#include <Resonance/protocol.cpp>
 #include <Resonance/rtc.cpp>
 
 #include <map>

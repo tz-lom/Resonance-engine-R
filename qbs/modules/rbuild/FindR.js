@@ -18,7 +18,8 @@ function parceFlags(str){
         libraryPaths: [],
         dynamicLibraries: [],
         frameworks: [],
-        frameworkPaths: []
+        frameworkPaths: [],
+        residuals: []
     }
 
     var parts = str.match(/(((\\ )|[^" \t\n])+|"[^"]*")/g);
@@ -45,6 +46,8 @@ function parceFlags(str){
             case '-framework':
                 ret.frameworks.push(parts[++i]);
                 continue
+            default:
+                ret.residuals.push(parts[i])
             }
         }
     }
@@ -83,5 +86,9 @@ function addToPath(path, extra, sep){
         return bits.join(sep);
     }
     return path;
+}
+
+function isWindows(){
+    return product;
 }
 

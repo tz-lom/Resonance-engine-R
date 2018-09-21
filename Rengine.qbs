@@ -18,7 +18,16 @@ Product {
     name: "Rengine"
     type: "dynamiclibrary"
     
-    cpp.includePaths: "thir"
+    cpp.includePaths: [
+        "thir",
+        "boost/preprocessor/include",
+        "boost/endian/include",
+        "boost/config/include",
+        "boost/predef/include",
+        "boost/core/include",
+        "boost/static_assert/include",
+        "rinside/inst/include"
+    ]
 
     Group {
         name: {
@@ -35,6 +44,20 @@ Product {
         fileTagsFilter: "dynamiclibrary"
         qbs.install: true
         qbs.installDir: "bin/engines"
+    }
+
+    Group {
+        name: "RInside"
+        files: [
+            "RInside/inst/include/**",
+            "RInside/src/*.cpp"
+        ]
+    }
+
+    Group {
+        name: "Gen R for RInside"
+        files: "RInside/src/tools/R*r"
+        fileTags: 'Rgen'
     }
 
 }

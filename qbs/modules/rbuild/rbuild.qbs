@@ -35,13 +35,18 @@ Module {
 
         property var extraPaths: []
 
+        property bool isWindows: qbs.hostOS.contains('windows')
+        property var architecture: qbs.architecture
+        property var pathListSeparator: qbs.pathListSeparator
+        property var rinsideFiles: product.sourceDirectory+'/rinside'
+
         property var error: ''
 
         configure: {
             ready = false;
-            Rhome = H.cmd(Process, "R",["RHOME"], extraPaths, qbs.pathListSeparator);
-            if(Rhome === '' &&
-                root.qbs.hostOS.contains("windows")){
+
+            Rhome = H.cmd(Process, "R",["RHOME"], extraPaths, pathListSeparator);
+            if(Rhome === '' && isWindows){
                 // we can try to find R from registry
                 var regValue = H.cmd(Process, "reg",
                       ['query',
@@ -53,18 +58,19 @@ Module {
                     Rhome = matches[1]
             }
 
-            if(root.qbs.hostOS.contains("windows")){
+
+            if(isWindows){
                 if(File.exists('c:\\Rtools\\bin'))
                 {
                     extraPaths = ['c:\\Rtools\\bin']
                 }
-                if(root.qbs.architecture === 'x86_64')
+                if(architecture === 'x86_64')
                 {
                     Rexe = Rhome+'/bin/x64/R.exe';
                     Rscript = Rhome+'/bin/x64/Rscript.exe'
                     extraPaths.push(Rhome+'/bin/x64')
                 }
-                if(root.qbs.architecture === 'x86')
+                if(architecture === 'x86')
                 {
                     Rexe = Rhome+'/bin/i386/R.exe';
                     Rscript = Rhome+'/bin/i386/Rscript.exe'
@@ -93,7 +99,8 @@ Module {
                 }
             }
 
-            version = H.cmd(Process, Rscript, ['-e',"cat(R.version$major,R.version$minor,sep='.')"], extraPaths, qbs.pathListSeparator);
+
+            version = H.cmd(Process, Rscript, ['-e',"cat(R.version$major,R.version$minor,sep='.')"], extraPaths, pathListSeparator);
             if(!version) {
                 print("R version error")
                 error += Rscript + version + ' version'
@@ -102,22 +109,31 @@ Module {
                         
 
             
-            var R_ldFlags = H.parceFlags(H.cmd(Process, Rexe, ['CMD','config','--ldflags'], extraPaths, qbs.pathListSeparator))
-            var R_cxxFlags = H.parceFlags(H.cmd(Process, Rexe, ['CMD','config','--cppflags'], extraPaths, qbs.pathListSeparator))
-            var Rcpp_ldFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'Rcpp:::LdFlags()'], extraPaths, qbs.pathListSeparator))
-            var Rcpp_cxxFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'Rcpp:::CxxFlags()'], extraPaths, qbs.pathListSeparator))
-            var RInside_ldFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'RInside:::LdFlags()'], extraPaths, qbs.pathListSeparator))
-            var RInside_cxxFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'RInside:::CxxFlags()'], extraPaths, qbs.pathListSeparator))
-            
-            libraryPaths = R_ldFlags.libraryPaths.concat(Rcpp_ldFlags.libraryPaths).concat(RInside_ldFlags.libraryPaths)
-            includePaths = R_cxxFlags.includePaths.concat(Rcpp_cxxFlags.includePaths).concat(RInside_cxxFlags.includePaths)
-            
-            error = libraryPaths
-            
-            dynamicLibraries = R_ldFlags.dynamicLibraries.concat(Rcpp_ldFlags.dynamicLibraries).concat(RInside_ldFlags.dynamicLibraries)
-            frameworks = R_ldFlags.frameworks.concat(Rcpp_ldFlags.frameworks).concat(RInside_ldFlags.frameworks)
-            frameworkPaths = R_ldFlags.frameworkPaths.concat(Rcpp_ldFlags.frameworkPaths).concat(RInside_ldFlags.frameworkPaths)
-            defines = root.qbs.hostOS.contains("windows")?['WIN32']:[]
+            var R_ldFlags = H.parceFlags(H.cmd(Process, Rexe, ['CMD','config','--ldflags'], extraPaths, pathListSeparator))
+            var R_cxxFlags = H.parceFlags(H.cmd(Process, Rexe, ['CMD','config','--cppflags'], extraPaths, pathListSeparator))
+            var Rcpp_ldFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'Rcpp:::LdFlags()'], extraPaths, pathListSeparator))
+            var Rcpp_cxxFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'Rcpp:::CxxFlags()'], extraPaths, pathListSeparator))
+
+            libraryPaths = R_ldFlags.libraryPaths.concat(Rcpp_ldFlags.libraryPaths)
+            includePaths = R_cxxFlags.includePaths.concat(Rcpp_cxxFlags.includePaths)
+            dynamicLibraries = R_ldFlags.dynamicLibraries.concat(Rcpp_ldFlags.dynamicLibraries)
+            frameworks = R_ldFlags.frameworks.concat(Rcpp_ldFlags.frameworks)
+            frameworkPaths = R_ldFlags.frameworkPaths.concat(Rcpp_ldFlags.frameworkPaths)
+
+            if(File.exists(rinsideFiles+ '/src')){
+
+            } else {
+
+                var RInside_ldFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'RInside:::LdFlags()'], extraPaths, pathListSeparator))
+                var RInside_cxxFlags = H.parceFlags(H.cmd(Process, Rscript, ['-e', 'RInside:::CxxFlags()'], extraPaths, pathListSeparator))
+                var RInsideExtra = RInside_ldFlags.residuals.length?(RInside_ldFlags.residuals[0].slice(1, -1)):[]
+                libraryPaths = libraryPaths.concat(RInside_ldFlags.libraryPaths)
+                includePaths = includePaths.concat(RInside_cxxFlags.includePaths)
+                dynamicLibraries = dynamicLibraries.concat(RInside_ldFlags.dynamicLibraries).concat(RInsideExtra)
+                frameworks = frameworks.concat(RInside_ldFlags.frameworks)
+                frameworkPaths = frameworkPaths.concat(RInside_ldFlags.frameworkPaths)
+            }
+            defines = isWindows?['WIN32']:[]
 
             ready = true;
         }
@@ -142,7 +158,7 @@ Module {
     }*/
 
     cpp.libraryPaths: rfind.libraryPaths
-    cpp.includePaths: rfind.includePaths
+    cpp.includePaths: rfind.includePaths.concat(product.buildDirectory + "/Rgen/")
     cpp.dynamicLibraries: rfind.dynamicLibraries
     cpp.frameworks: rfind.frameworks
     cpp.frameworkPaths: rfind.frameworkPaths
