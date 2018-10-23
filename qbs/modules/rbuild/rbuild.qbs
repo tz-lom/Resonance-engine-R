@@ -60,10 +60,7 @@ Module {
 
 
             if(isWindows){
-                if(File.exists('c:\\Rtools\\bin'))
-                {
-                    extraPaths = ['c:\\Rtools\\bin']
-                }
+                extraPaths = ['c:\\Rtools\\bin']
                 if(architecture === 'x86_64')
                 {
                     Rexe = Rhome+'/bin/x64/R.exe';
