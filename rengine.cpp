@@ -27,20 +27,40 @@ using Resonance::RTC;
 static RInside *Rengine = nullptr;
 static InterfacePointers ip;
 static const char* engineNameString = "R";
+static const char* engineInitString = "require(Resonance);";
+static const char* engineCodeString = "process = function(){\n"
+                                       "    createOutput(input(1), 'out')\n"
+                                       "}";
 
 typedef struct {
     int id;
     Thir::SerializedData::rid type;
-} StreamDescription;
+} OutputStreamDescription;
 
-static std::map<int, StreamDescription> outputs;
-static std::map<int, StreamDescription> inputs;
+typedef struct {
+    int id;
+    Thir::SerializedData::rid type;
+    Rcpp::RObject si;
+} InputStreamDescription;
+
+static std::map<int, OutputStreamDescription> outputs;
+static std::map<int, InputStreamDescription> inputs;
 bool RparceQueue();
 
 
 const char * engineName()
 {
     return engineNameString;
+}
+
+const char* engineInitDefault()
+{
+    return engineInitString;
+}
+
+const char* engineCodeDefault()
+{
+    return engineCodeString;
 }
 
 bool initializeEngine(InterfacePointers _ip, const char *code, size_t codeLength)
@@ -69,10 +89,9 @@ bool prepareEngine(const char *code, size_t codeLength, const SerializedDataCont
         return false;
     }
 
-    Rcpp::Function onPrepare("onPrepare", "Resonate");
+    Rcpp::Function onPrepare("onPrepare");
 
     Rcpp::List inputList;
-    int registeredInputs = 0;
     for(uint32_t i=0; i<streamCount; ++i)
     {
         Thir::SerializedData data((const char*)streams[i].data, streams[i].size);
@@ -84,23 +103,29 @@ bool prepareEngine(const char *code, size_t codeLength, const SerializedDataCont
         //case ConnectionHeader_Int32::ID:
         //case ConnectionHeader_Int64::ID:
         case ConnectionHeader_Float64::ID:
-            inputList.push_back(
-                        Rcpp::List::create(
-                            Rcpp::Named("type") = "channels",
-                            Rcpp::Named("channels") = type.field<ConnectionHeader_Float64::channels>().value(),
-                            Rcpp::Named("samplingRate") = type.field<ConnectionHeader_Float64::samplingRate>().value(),
-                            Rcpp::Named("online") = true
-                    ));
-            inputs[i] = {++registeredInputs, Float64::ID};
+            {
+                Rcpp::List si = Rcpp::Function("SI.channels")(
+                            type.field<ConnectionHeader_Float64::channels>().value(), 
+                            type.field<ConnectionHeader_Float64::samplingRate>().value(),
+                            i+1,
+                            data.field<ConnectionHeaderContainer::name>().value());
+                si["online"] = true;
+                
+                inputList.push_back(si);
+                inputs[i] = {i+1, Float64::ID, si};
+            }
             break;
 
         case ConnectionHeader_Message::ID:
-            inputList.push_back(
-                        Rcpp::List::create(
-                            Rcpp::Named("type") = "event",
-                            Rcpp::Named("online") = true
-                    ));
-            inputs[i] = {++registeredInputs, Message::ID};
+            {
+                Rcpp::List si = Rcpp::Function("SI.event")(
+                            i+1,
+                            data.field<ConnectionHeaderContainer::name>().value());
+                si["online"] = true;
+                
+                inputList.push_back(si);
+                inputs[i] = {i+1, Message::ID, si};
+            }
             break;
         }
     }
@@ -127,14 +152,19 @@ void blockReceived(const int id, const SerializedDataContainer block)
         {
         case Message::ID:
         {
-            Rcpp::Function onDataBlock("onDataBlock.message", "Resonate");
+            Rcpp::Function onDataBlock("onDataBlock");
+            Rcpp::Function DBevent("DB.event");
 
             Thir::SerializedData data(block.data, block.size);
+            
+            Rcpp::DoubleVector time(reinterpret_cast<double>(data.field<Float64::created>().value()));
 
-            onDataBlock(is.id,
-                        data.field<Message::message>().value(),
-                        data.field<Message::created>().value()/1E3
-                        );
+            onDataBlock(
+                        DBevent(
+                            is.si,
+                            data.field<Message::message>().value(),
+                            time
+                        ));
         }
             break;
         case Float64::ID:
@@ -143,15 +173,20 @@ void blockReceived(const int id, const SerializedDataContainer block)
 
             auto vec = data.field<Float64::data>().toVector();
             Rcpp::NumericVector rdata(vec.begin(), vec.end());
+            
+            Rcpp::Function onDataBlock("onDataBlock");
+            Rcpp::Function DBevent("DB.channels");
 
-            int samples = data.field<Float64::samples>();
+            Thir::SerializedData data(block.data, block.size);
+            
+            Rcpp::DoubleVector time(reinterpret_cast<double>(data.field<Float64::created>().value()));
 
-            Rcpp::Function onDataBlock("onDataBlock.double", "Resonate");
-            onDataBlock(is.id,
-                        rdata,
-                        samples,
-                        data.field<Float64::created>().value()/1E3
-                        );
+            onDataBlock(
+                        DBchannels(
+                            is.si,
+                            data.field<Message::message>().value(),
+                            vec
+                        ));
         }
             break;
         }
@@ -169,6 +204,11 @@ void blockReceived(const int id, const SerializedDataContainer block)
     RparceQueue();
 }
 
+void onTimer(const int id, const uint64_t time)
+{
+    
+}
+
 void startEngine()
 {
 }
@@ -182,7 +222,7 @@ bool RparceQueue()
     try
     {
 
-        Rcpp::Function popQueue("popQueue", "Resonate");
+        Rcpp::Function popQueue("popQueue", "Resonance");
         Rcpp::List queue = popQueue();
 
 
@@ -232,8 +272,7 @@ bool RparceQueue()
                     break;
                 }
             }
-
-            if(cmd=="createOutputStream")
+            else if(cmd=="createOutputStream")
             {
                 int id = Rcpp::as<int>(args["id"]);
                 std::string name = args["name"];
@@ -266,6 +305,19 @@ bool RparceQueue()
                     }
 
                 }
+            }
+            else if(cmd=="startTimer")
+            {
+                int id = Rcpp::as<int>(args["id"]);
+                int timeout = Rcpp::as<int>(args["timeout"]);
+                bool singleShot = Rcpp::as<bool>(args["singleShot"]);
+                
+                ip.startTimer(id, timeout, singleShot);
+            }
+            else if(cmd=="stopTimer")
+            {
+                int id = Rcpp::as<int>(args["id"]);
+                ip.stopTimer(id);
             }
         }
     }

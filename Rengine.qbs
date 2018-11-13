@@ -31,6 +31,7 @@ Product {
 
     Group {
         name: {
+            return cpp.libraryPaths.toString()
             return rbuild.debug.toString()
         }
     }

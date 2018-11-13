@@ -130,7 +130,7 @@ Module {
                 frameworkPaths = frameworkPaths.concat(RInside_ldFlags.frameworkPaths)
             }
             defines = isWindows?['WIN32']:[]
-
+            
             ready = true;
         }
     }
