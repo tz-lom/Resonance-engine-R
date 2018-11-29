@@ -25,3 +25,6 @@
 [submodule "rinside"]
 	path = rinside
 	url = https://github.com/eddelbuettel/rinside
+[submodule "googletest"]
+	path = googletest
+	url = https://github.com/abseil/googletest

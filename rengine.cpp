@@ -130,7 +130,7 @@ bool prepareEngine(const char* code, size_t codeLength, const SerializedDataCont
 
 inline Rcpp::DoubleVector toBit64(unsigned long int time)
 {
-    Rcpp::DoubleVector bit64(*reinterpret_cast<double*>(&time));
+    Rcpp::DoubleVector bit64 = { *reinterpret_cast<double*>(&time) };
     bit64.attr("class") = "integer64";
     return bit64;
 }
@@ -149,8 +149,8 @@ void blockReceived(const int id, const SerializedDataContainer block)
             onDataBlock(
                 DBevent(
                     is.si,
-                    data.field<Message::message>().value(),
-                    toBit64(data.field<Float64::created>().value())));
+                    toBit64(data.field<Message::created>().value()),
+                    data.field<Message::message>().value()));
         } break;
         case Float64::ID: {
             Thir::SerializedData data(block.data, block.size);
@@ -159,21 +159,21 @@ void blockReceived(const int id, const SerializedDataContainer block)
             Rcpp::NumericVector rdata(vec.begin(), vec.end());
 
             Rcpp::Function onDataBlock("onDataBlock");
-            Rcpp::Function DBevent("DB.channels");
+            Rcpp::Function DBchannels("DB.channels");
 
             onDataBlock(
-                DBevent(
+                DBchannels(
                     is.si,
-                    data.field<Message::message>().value(),
-                    toBit64(data.field<Float64::created>().value())));
+                    toBit64(data.field<Float64::created>().value()),
+                    vec));
         } break;
         }
     } catch (Rcpp::eval_error& e) {
-        //qDebug() << "R err:" << e.what();
+        std::cout << "R err:" << e.what();
     }
 
     catch (std::exception& e) {
-        //qDebug() << e.what();
+        std::cout << "exc:" << e.what();
         return;
     }
     RparceQueue();
@@ -185,17 +185,23 @@ void onTimer(const int id, const uint64_t time)
 
 void startEngine()
 {
+    Rcpp::Function call("onStart");
+    call();
+    RparceQueue();
 }
 
 void stopEngine()
 {
+    Rcpp::Function call("onStop");
+    call();
+    RparceQueue();
 }
 
 bool RparceQueue()
 {
     try {
 
-        Rcpp::Function popQueue("popQueue", "Resonance");
+        Rcpp::Function popQueue("popQueue");
         Rcpp::List queue = popQueue();
 
         for (Rcpp::List::iterator i = queue.begin(); i != queue.end(); ++i) {
@@ -275,6 +281,7 @@ bool RparceQueue()
     } catch (Rcpp::exception& e) {
         return false;
     } catch (std::exception& e) {
+        std::cout << "exc:" << e.what();
         return false;
     }
 
